@@ -178,9 +178,7 @@
   <div id="startOverlay">
     <div id="startBox">
       <h2>The Booba game &lt;3</h2>
-      <p>
-Tap the button below to start the game and music 💖
-      </p>
+      <p>Tap the button to start the game 💖</p>
       <button id="startBtn">Start game 💕</button>
     </div>
   </div>
@@ -263,14 +261,18 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       "no no no 😜"
     ];
 
-    async function beginGame() {
-      try {
-        await music.play();
-      } catch (e) {
-        console.log("Music could not start:", e);
-      }
-      startOverlay.style.display = "none";
+    function beginGame() {
+      if (gameStarted) return;
+
       gameStarted = true;
+      startOverlay.style.display = "none";
+
+      const p = music.play();
+      if (p !== undefined) {
+        p.catch((err) => {
+          console.log("Music could not start:", err);
+        });
+      }
     }
 
     function randomRange(min, max) {
@@ -639,7 +641,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     bindControl("rightBtn", "ArrowRight");
 
     startBtn.addEventListener("click", beginGame);
-    startBtn.addEventListener("touchstart", beginGame, { passive: true });
 
     restartBtn.addEventListener("click", () => {
       resetGame();
