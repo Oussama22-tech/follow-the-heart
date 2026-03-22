@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Birthday Heart Hunt</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #ffe4ec, #fff7fa);
+      overflow: hidden;
+    }
+
+    #gameWrapper {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      position: relative;
+    }
+
+    h1 {
+      margin: 16px 0 8px;
+      color: #d63384;
+      text-align: center;
+    }
+
+    #info {
+      color: #7a2c5b;
+      margin-bottom: 10px;
+      font-size: 18px;
+      text-align: center;
+      padding: 0 16px;
+    }
+
+    canvas {
+      border: 4px solid #f5a3c7;
+      border-radius: 20px;
+      background: #fff0f6;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      max-width: 95vw;
+      max-height: 75vh;
+    }
+
+    #messageOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 240, 246, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    #messageBox {
+      max-width: 700px;
+      background: white;
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 12px 40px rgba(214, 51, 132, 0.18);
+      border: 3px solid #f5a3c7;
+    }
+
+    #messageBox h2 {
+      color: #d63384;
+      margin-top: 0;
+      font-size: 2rem;
+    }
+
+    #messageBox p {
+      color: #6b3050;
+      font-size: 1.2rem;
+      line-height: 1.7;
+      margin-bottom: 0;
+      white-space: pre-line;
+    }
+
+    #restartBtn {
+      margin-top: 22px;
+      padding: 12px 22px;
+      font-size: 16px;
+      border: none;
+      border-radius: 999px;
+      background: #d63384;
+      color: white;
+      cursor: pointer;
+    }
+
+    #restartBtn:hover {
+      background: #bf2c74;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrapper">
+    <h1>Birthday Heart Hunt 💖</h1>
+    <div id="info">
+      Use the arrow keys to collect 5 hearts and unlock your birthday surprise ✨
+    </div>
+
+    <canvas id="gameCanvas" width="900" height="520"></canvas>
+
+    <div id="messageOverlay">
+      <div id="messageBox">
+        <h2>Happy Birthday, my love 🎂💖</h2>
+        <p id="finalMessage">
+You unlocked your surprise ✨
+
+I made this little game just for you.
+I hope your birthday is full of smiles, love, and beautiful moments.
+
+And your real reward?
+A special birthday date with me, lots of hugs, and a little surprise waiting for you 💝
+        </p>
+        <button id="restartBtn">Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const info = document.getElementById("info");
+    const overlay = document.getElementById("messageOverlay");
+    const restartBtn = document.getElementById("restartBtn");
+
+    const keys = {
+      ArrowUp: false,
+      ArrowDown: false,
+      ArrowLeft: false,
+      ArrowRight: false,
+    };
+
+    const player = {
+      x: 100,
+      y: 260,
+      size: 22,
+      speed: 4.2,
+      color: "#ff4d88",
+    };
+
+    let score = 0;
+    const targetScore = 5;
+    let gameWon = false;
+
+    const heart = {
+      x: 650,
+      y: 260,
+      size: 18,
+    };
+
+    const sparkles = [];
+
+    function randomRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function spawnHeart() {
+      heart.x = randomRange(60, canvas.width - 60);
+      heart.y = randomRange(80, canvas.height - 60);
+    }
+
+    function createSparkles(x, y) {
+      for (let i = 0; i < 18; i++) {
+        sparkles.push({
+          x,
+          y,
+          dx: randomRange(-2.5, 2.5),
+          dy: randomRange(-2.5, 2.5),
+          life: 30,
+          size: randomRange(2, 5),
+        });
+      }
+    }
+
+    function drawRoundedPlayer() {
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+      ctx.fillStyle = player.color;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(player.x - 7, player.y - 5, 2.5, 0, Math.PI * 2);
+      ctx.arc(player.x + 7, player.y - 5, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(player.x - 7, player.y - 5, 1.2, 0, Math.PI * 2);
+      ctx.arc(player.x + 7, player.y - 5, 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = "#333";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(player.x, player.y + 4, 6, 0, Math.PI);
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    function drawHeart(x, y, size) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, size / 4);
+      ctx.bezierCurveTo(size / 2, -size / 2, size, size / 3, 0, size);
+      ctx.bezierCurveTo(-size, size / 3, -size / 2, -size / 2, 0, size / 4);
+      ctx.fillStyle = "#ff2e63";
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBackgroundDecor() {
+      for (let i = 0; i < 10; i++) {
+        ctx.globalAlpha = 0.12;
+        drawHeart(80 + i * 85, 55 + (i % 2) * 18, 10);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function updatePlayer() {
+      if (keys.ArrowUp) player.y -= player.speed;
+      if (keys.ArrowDown) player.y += player.speed;
+      if (keys.ArrowLeft) player.x -= player.speed;
+      if (keys.ArrowRight) player.x += player.speed;
+
+      player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+      player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+    }
+
+    function checkCollision() {
+      const dx = player.x - heart.x;
+      const dy = player.y - heart.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < player.size + heart.size * 0.8) {
+        score++;
+        createSparkles(heart.x, heart.y);
+
+        if (score >= targetScore) {
+          gameWon = true;
+          overlay.style.display = "flex";
+          info.textContent = "You did it 💖";
+        } else {
+          spawnHeart();
+        }
+      }
+    }
+
+    function updateSparkles() {
+      for (let i = sparkles.length - 1; i >= 0; i--) {
+        const s = sparkles[i];
+        s.x += s.dx;
+        s.y += s.dy;
+        s.life--;
+
+        if (s.life <= 0) {
+          sparkles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawSparkles() {
+      sparkles.forEach((s) => {
+        ctx.globalAlpha = s.life / 30;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff9ec4";
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = "#8b3a62";
+      ctx.font = "bold 24px Arial";
+      ctx.fillText(`Hearts: ${score} / ${targetScore}`, 24, 36);
+
+      ctx.font = "18px Arial";
+      ctx.fillStyle = "#a64d79";
+      ctx.fillText("Collect all the hearts to unlock your birthday message 💌", 24, 66);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBackgroundDecor();
+      drawHUD();
+      drawHeart(heart.x, heart.y, heart.size);
+      drawRoundedPlayer();
+      drawSparkles();
+    }
+
+    function gameLoop() {
+      if (!gameWon) {
+        updatePlayer();
+        checkCollision();
+        updateSparkles();
+      }
+
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resetGame() {
+      score = 0;
+      gameWon = false;
+      player.x = 100;
+      player.y = 260;
+      sparkles.length = 0;
+      overlay.style.display = "none";
+      info.textContent = "Use the arrow keys to collect 5 hearts and unlock your birthday surprise ✨";
+      spawnHeart();
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key in keys) {
+        keys[e.key] = true;
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (e.key in keys) {
+        keys[e.key] = false;
+        e.preventDefault();
+      }
+    });
+
+    restartBtn.addEventListener("click", resetGame);
+
+    spawnHeart();
+    gameLoop();
+  </script>
+</body>
+</html>
