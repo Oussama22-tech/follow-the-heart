@@ -88,8 +88,7 @@
     #downBtn { grid-column: 2; grid-row: 2; }
     #rightBtn { grid-column: 3; grid-row: 2; }
 
-    #messageOverlay,
-    #startOverlay {
+    #overlay {
       position: fixed;
       inset: 0;
       background: rgba(255, 240, 246, 0.96);
@@ -101,14 +100,8 @@
       z-index: 20;
     }
 
-    #messageOverlay {
-      display: none;
-      z-index: 25;
-    }
-
-    #messageBox,
-    #startBox {
-      max-width: 700px;
+    #overlayBox {
+      max-width: 760px;
       background: white;
       border-radius: 24px;
       padding: 32px 24px;
@@ -116,23 +109,21 @@
       border: 3px solid #f5a3c7;
     }
 
-    #messageBox h2,
-    #startBox h2 {
+    #overlayTitle {
       color: #d63384;
       margin-top: 0;
       font-size: clamp(28px, 5vw, 40px);
     }
 
-    #messageBox p,
-    #startBox p {
+    #overlayText {
       color: #6b3050;
       font-size: clamp(18px, 3vw, 22px);
       line-height: 1.7;
       white-space: pre-line;
+      margin-bottom: 0;
     }
 
-    #restartBtn,
-    #startBtn {
+    .overlayBtn {
       margin-top: 22px;
       padding: 12px 22px;
       font-size: 16px;
@@ -141,11 +132,16 @@
       background: #d63384;
       color: white;
       cursor: pointer;
+      margin-left: 6px;
+      margin-right: 6px;
     }
 
-    #restartBtn:hover,
-    #startBtn:hover {
+    .overlayBtn:hover {
       background: #bf2c74;
+    }
+
+    #overlayButtons {
+      margin-top: 18px;
     }
 
     @media (max-width: 700px) {
@@ -175,24 +171,13 @@
     </div>
   </div>
 
-  <div id="startOverlay">
-    <div id="startBox">
-      <h2>The Booba game &lt;3</h2>
-      <p>Tap the button to start the game 💖</p>
-      <button id="startBtn">Start game 💕</button>
-    </div>
-  </div>
-
-  <div id="messageOverlay">
-    <div id="messageBox">
-      <h2>Happy birthday booba 🎂💖</h2>
-      <p>
-You unlocked your surprise ✨
-
-I made this little game just for you.
-I hope your birthday is full of smiles, love, and beautiful moments.
-      </p>
-      <button id="restartBtn">Play Again</button>
+  <div id="overlay">
+    <div id="overlayBox">
+      <h2 id="overlayTitle">The Booba game &lt;3</h2>
+      <p id="overlayText">Tap the button to start the game 💖</p>
+      <div id="overlayButtons">
+        <button class="overlayBtn" id="mainBtn">Start game 💕</button>
+      </div>
     </div>
   </div>
 
@@ -204,19 +189,18 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const info = document.getElementById("info");
-    const overlay = document.getElementById("messageOverlay");
-    const restartBtn = document.getElementById("restartBtn");
-    const startOverlay = document.getElementById("startOverlay");
-    const startBtn = document.getElementById("startBtn");
+
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayText = document.getElementById("overlayText");
+    const overlayButtons = document.getElementById("overlayButtons");
+    const mainBtn = document.getElementById("mainBtn");
 
     const music = document.getElementById("bgMusic");
     music.volume = 0.45;
 
     const bearImage = new Image();
     bearImage.src = "bear.png";
-
-    let gameStarted = false;
-    let gameWon = false;
 
     const keys = {
       ArrowUp: false,
@@ -225,11 +209,16 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ArrowRight: false,
     };
 
+    let gameStarted = false;
+    let phase = "chase"; // chase, decision, ended
+    let overlayMode = "start";
+
     const player = {
       x: 110,
       y: 260,
       size: 68,
       speed: 4.2,
+      carryingHeart: false,
     };
 
     const heart = {
@@ -248,6 +237,25 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       bubbleY: 250,
     };
 
+    const redBox = {
+      x: 220,
+      y: 390,
+      w: 90,
+      h: 90,
+      dodgesLeft: 3,
+      visible: true,
+      respawnTimer: 0,
+      nextX: 220,
+      nextY: 390,
+    };
+
+    const blueBox = {
+      x: 590,
+      y: 390,
+      w: 90,
+      h: 90,
+    };
+
     const sparkles = [];
 
     const bubbleTexts = [
@@ -263,15 +271,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
     function beginGame() {
       if (gameStarted) return;
-
       gameStarted = true;
-      startOverlay.style.display = "none";
+      overlay.style.display = "none";
 
       const p = music.play();
       if (p !== undefined) {
-        p.catch((err) => {
-          console.log("Music could not start:", err);
-        });
+        p.catch((err) => console.log("Music could not start:", err));
       }
     }
 
@@ -301,11 +306,11 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       }
     }
 
-    function showBubble(text) {
+    function showBubble(text, x = heart.x, y = heart.y) {
       heart.bubble = text;
       heart.bubbleTimer = 95;
-      heart.bubbleX = heart.x;
-      heart.bubbleY = heart.y;
+      heart.bubbleX = x;
+      heart.bubbleY = y;
     }
 
     function drawPlayer() {
@@ -322,6 +327,10 @@ I hope your birthday is full of smiles, love, and beautiful moments.
         ctx.arc(player.x, player.y, 24, 0, Math.PI * 2);
         ctx.fillStyle = "#c98b5b";
         ctx.fill();
+      }
+
+      if (player.carryingHeart) {
+        drawHeart(player.x + 20, player.y + 2, 12);
       }
     }
 
@@ -398,6 +407,18 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.restore();
     }
 
+    function drawBox(box, color, label) {
+      ctx.save();
+      ctx.fillStyle = color;
+      roundRect(ctx, box.x, box.y, box.w, box.h, 18);
+      ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = "bold 24px Arial";
+      const tw = ctx.measureText(label).width;
+      ctx.fillText(label, box.x + box.w / 2 - tw / 2, box.y + box.h / 2 + 8);
+      ctx.restore();
+    }
+
     function updatePlayer() {
       if (keys.ArrowUp) player.y -= player.speed;
       if (keys.ArrowDown) player.y += player.speed;
@@ -464,7 +485,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.respawnTimer = 42;
       heart.dodgesLeft--;
       heart.escapedFlash = 12;
-
       createSparkles(heart.x, heart.y, 14, "#ffbad3");
 
       if (heart.dodgesLeft > 3) {
@@ -488,7 +508,140 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       }
     }
 
-    function checkHeartBehavior() {
+    function rectsOverlap(cx, cy, radius, box) {
+      const closestX = clamp(cx, box.x, box.x + box.w);
+      const closestY = clamp(cy, box.y, box.y + box.h);
+      const dx = cx - closestX;
+      const dy = cy - closestY;
+      return dx * dx + dy * dy < radius * radius;
+    }
+
+    function chooseRedBoxPosition() {
+      let bestX = redBox.x;
+      let bestY = redBox.y;
+      let bestScore = -Infinity;
+
+      const minMoveDistance = 85;
+      const maxMoveDistance = 180;
+
+      for (let i = 0; i < 25; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let distance = randomRange(minMoveDistance, maxMoveDistance);
+
+        let candidateX = redBox.x + Math.cos(angle) * distance;
+        let candidateY = redBox.y + Math.sin(angle) * distance;
+
+        candidateX = clamp(candidateX, 30, canvas.width - redBox.w - 30);
+        candidateY = clamp(candidateY, 110, canvas.height - redBox.h - 25);
+
+        const distFromPlayer = Math.hypot(candidateX - player.x, candidateY - player.y);
+        const distFromOld = Math.hypot(candidateX - redBox.x, candidateY - redBox.y);
+
+        if (distFromOld < minMoveDistance) continue;
+
+        const score = distFromPlayer * 1.2 + distFromOld;
+        if (score > bestScore) {
+          bestScore = score;
+          bestX = candidateX;
+          bestY = candidateY;
+        }
+      }
+
+      redBox.nextX = bestX;
+      redBox.nextY = bestY;
+    }
+
+    function startRedBoxEscape() {
+      chooseRedBoxPosition();
+      redBox.visible = false;
+      redBox.respawnTimer = 28;
+      redBox.dodgesLeft--;
+      createSparkles(redBox.x + redBox.w / 2, redBox.y + redBox.h / 2, 12, "#ffc6d8");
+      showBubble(randomItem(["nah 😜", "not yet ❤️", "hehe no", "too late 💨"]), redBox.x + redBox.w / 2, redBox.y);
+      info.textContent = redBox.dodgesLeft > 0 ? "The red box is being difficult too 😭" : "Okay... it stopped running.";
+    }
+
+    function updateRedBoxRespawn() {
+      if (!redBox.visible && redBox.respawnTimer > 0) {
+        redBox.respawnTimer--;
+        if (redBox.respawnTimer <= 0) {
+          redBox.x = redBox.nextX;
+          redBox.y = redBox.nextY;
+          redBox.visible = true;
+          createSparkles(redBox.x + redBox.w / 2, redBox.y + redBox.h / 2, 8, "#ffd1e3");
+        }
+      }
+    }
+
+    function openOverlay(title, text, buttons) {
+      overlayTitle.textContent = title;
+      overlayText.textContent = text;
+      overlayButtons.innerHTML = "";
+      buttons.forEach((b) => {
+        const btn = document.createElement("button");
+        btn.className = "overlayBtn";
+        btn.textContent = b.label;
+        btn.addEventListener("click", b.onClick);
+        overlayButtons.appendChild(btn);
+      });
+      overlay.style.display = "flex";
+    }
+
+    function openCaughtHeartOverlay() {
+      openOverlay(
+        "congrats booba 💖",
+        "i guess you never fail to catch my heart 💖\n\nif you want to give it back, you can put it in the red box\nif you want to keep it put it in the blue box",
+        [
+          {
+            label: "Continue",
+            onClick: () => {
+              overlay.style.display = "none";
+              phase = "decision";
+              player.carryingHeart = true;
+              player.x = 110;
+              player.y = 260;
+              info.textContent = "Now choose what to do with the heart 💖";
+            }
+          }
+        ]
+      );
+    }
+
+    function openRedEnding() {
+      phase = "ended";
+      openOverlay(
+        "well...",
+        "well, i guess i got it back .. i hope you enjoyed the small game anyway :)",
+        [
+          {
+            label: "Play again",
+            onClick: () => {
+              overlay.style.display = "none";
+              resetGame();
+            }
+          }
+        ]
+      );
+    }
+
+    function openBlueEnding() {
+      phase = "ended";
+      openOverlay(
+        "booba 💙",
+        "well, i guess the word BLUE will be enough when you feel ready .. i hope you enjoyed the game 💙",
+        [
+          {
+            label: "Play again",
+            onClick: () => {
+              overlay.style.display = "none";
+              resetGame();
+            }
+          }
+        ]
+      );
+    }
+
+    function checkChasePhase() {
       if (!heart.visible) return;
 
       const dx = player.x - heart.x;
@@ -501,10 +654,27 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       const catchRadius = player.size * 0.28 + heart.size * 0.9;
       if (heart.dodgesLeft <= 0 && distance < catchRadius) {
-        gameWon = true;
-        overlay.style.display = "flex";
-        info.textContent = "You got it 💖";
+        phase = "caught";
+        player.carryingHeart = true;
         createSparkles(heart.x, heart.y, 30, "#ff6fa8");
+        openCaughtHeartOverlay();
+      }
+    }
+
+    function checkDecisionPhase() {
+      const playerRadius = player.size * 0.28;
+
+      if (rectsOverlap(player.x, player.y, playerRadius, blueBox)) {
+        openBlueEnding();
+        return;
+      }
+
+      if (redBox.visible && rectsOverlap(player.x, player.y, playerRadius, redBox)) {
+        if (redBox.dodgesLeft > 0) {
+          startRedBoxEscape();
+        } else {
+          openRedEnding();
+        }
       }
     }
 
@@ -538,11 +708,23 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     function drawHUD() {
       ctx.fillStyle = "#8b3a62";
       ctx.font = "bold 24px Arial";
-      ctx.fillText("Catch the heart 💕", 24, 36);
 
-      ctx.font = "18px Arial";
-      ctx.fillStyle = "#a64d79";
-      ctx.fillText("It keeps slipping away...", 24, 66);
+      if (phase === "chase" || phase === "caught") {
+        ctx.fillText("Catch the heart 💕", 24, 36);
+        ctx.font = "18px Arial";
+        ctx.fillStyle = "#a64d79";
+        ctx.fillText("It keeps slipping away...", 24, 66);
+      } else if (phase === "decision") {
+        ctx.fillText("Choose the red or blue box 💝", 24, 36);
+        ctx.font = "18px Arial";
+        ctx.fillStyle = "#a64d79";
+        ctx.fillText("The heart is in your hands now...", 24, 66);
+      }
+    }
+
+    function drawDecisionObjects() {
+      if (redBox.visible) drawBox(redBox, "#ff4f70", "RED");
+      drawBox(blueBox, "#4b7cff", "BLUE");
     }
 
     function draw() {
@@ -550,19 +732,34 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       drawBackgroundDecor();
       drawHUD();
-      if (heart.visible) drawHeart(heart.x, heart.y, heart.size);
+
+      if ((phase === "chase" || phase === "caught") && heart.visible) {
+        drawHeart(heart.x, heart.y, heart.size);
+      }
+
+      if (phase === "decision" || phase === "ended") {
+        drawDecisionObjects();
+      }
+
       drawPlayer();
       drawSparkles();
       drawBubble();
     }
 
     function gameLoop() {
-      if (gameStarted && !gameWon) {
+      if (gameStarted && overlay.style.display === "none") {
         updatePlayer();
-        checkHeartBehavior();
-        updateHeartRespawn();
+
+        if (phase === "chase") {
+          checkChasePhase();
+          updateHeartRespawn();
+        } else if (phase === "decision") {
+          checkDecisionPhase();
+          updateRedBoxRespawn();
+        }
+
         updateSparkles();
-      } else if (gameWon) {
+      } else {
         updateSparkles();
       }
 
@@ -571,9 +768,14 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     }
 
     function resetGame() {
-      gameWon = false;
+      phase = "chase";
+      overlayMode = "start";
+      gameStarted = false;
+
       player.x = 110;
       player.y = 260;
+      player.carryingHeart = false;
+
       heart.x = 680;
       heart.y = 250;
       heart.nextX = 680;
@@ -586,9 +788,28 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.bubbleTimer = 0;
       heart.bubbleX = heart.x;
       heart.bubbleY = heart.y;
+
+      redBox.x = 220;
+      redBox.y = 390;
+      redBox.nextX = 220;
+      redBox.nextY = 390;
+      redBox.dodgesLeft = 3;
+      redBox.visible = true;
+      redBox.respawnTimer = 0;
+
       sparkles.length = 0;
-      overlay.style.display = "none";
       info.innerHTML = "Catch the little heart if you can 💖<br />It’s a bit shy... and a bit annoying.";
+
+      overlayTitle.textContent = "The Booba game <3";
+      overlayText.textContent = "Tap the button to start the game 💖";
+      overlayButtons.innerHTML = "";
+      const btn = document.createElement("button");
+      btn.className = "overlayBtn";
+      btn.textContent = "Start game 💕";
+      btn.addEventListener("click", beginGame);
+      overlayButtons.appendChild(btn);
+
+      overlay.style.display = "flex";
     }
 
     function setKey(key, value) {
@@ -596,7 +817,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     }
 
     window.addEventListener("keydown", (e) => {
-      if (!gameStarted) return;
+      if (!gameStarted || overlay.style.display !== "none") return;
       if (e.key in keys) {
         keys[e.key] = true;
         e.preventDefault();
@@ -615,7 +836,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       const press = (e) => {
         e.preventDefault();
-        if (!gameStarted) return;
+        if (!gameStarted || overlay.style.display !== "none") return;
         setKey(keyName, true);
         btn.classList.add("pressed");
       };
@@ -640,11 +861,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     bindControl("downBtn", "ArrowDown");
     bindControl("rightBtn", "ArrowRight");
 
-    startBtn.addEventListener("click", beginGame);
-
-    restartBtn.addEventListener("click", () => {
-      resetGame();
-    });
+    mainBtn.addEventListener("click", beginGame);
 
     gameLoop();
   </script>
