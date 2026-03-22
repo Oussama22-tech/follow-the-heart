@@ -88,11 +88,12 @@
     #downBtn { grid-column: 2; grid-row: 2; }
     #rightBtn { grid-column: 3; grid-row: 2; }
 
-    #messageOverlay {
+    #messageOverlay,
+    #startOverlay {
       position: fixed;
       inset: 0;
       background: rgba(255, 240, 246, 0.96);
-      display: none;
+      display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
@@ -100,7 +101,13 @@
       z-index: 20;
     }
 
-    #messageBox {
+    #messageOverlay {
+      display: none;
+      z-index: 25;
+    }
+
+    #messageBox,
+    #startBox {
       max-width: 700px;
       background: white;
       border-radius: 24px;
@@ -109,21 +116,23 @@
       border: 3px solid #f5a3c7;
     }
 
-    #messageBox h2 {
+    #messageBox h2,
+    #startBox h2 {
       color: #d63384;
       margin-top: 0;
       font-size: clamp(28px, 5vw, 40px);
     }
 
-    #messageBox p {
+    #messageBox p,
+    #startBox p {
       color: #6b3050;
       font-size: clamp(18px, 3vw, 22px);
       line-height: 1.7;
-      margin-bottom: 0;
       white-space: pre-line;
     }
 
-    #restartBtn {
+    #restartBtn,
+    #startBtn {
       margin-top: 22px;
       padding: 12px 22px;
       font-size: 16px;
@@ -134,7 +143,8 @@
       cursor: pointer;
     }
 
-    #restartBtn:hover {
+    #restartBtn:hover,
+    #startBtn:hover {
       background: #bf2c74;
     }
 
@@ -165,6 +175,16 @@
     </div>
   </div>
 
+  <div id="startOverlay">
+    <div id="startBox">
+      <h2>The Booba game &lt;3</h2>
+      <p>
+Tap the button below to start the game and music 💖
+      </p>
+      <button id="startBtn">Start game 💕</button>
+    </div>
+  </div>
+
   <div id="messageOverlay">
     <div id="messageBox">
       <h2>Happy birthday booba 🎂💖</h2>
@@ -178,8 +198,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     </div>
   </div>
 
-  <audio id="bgMusic" loop preload="auto">
-    <source src="music.mp3" type="audio/mpeg" />
+  <audio id="bgMusic" loop>
+    <source src="music.mp3" type="audio/mpeg">
   </audio>
 
   <script>
@@ -188,12 +208,17 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     const info = document.getElementById("info");
     const overlay = document.getElementById("messageOverlay");
     const restartBtn = document.getElementById("restartBtn");
+    const startOverlay = document.getElementById("startOverlay");
+    const startBtn = document.getElementById("startBtn");
 
     const music = document.getElementById("bgMusic");
-    let musicStarted = false;
+    music.volume = 0.45;
 
     const bearImage = new Image();
     bearImage.src = "bear.png";
+
+    let gameStarted = false;
+    let gameWon = false;
 
     const keys = {
       ArrowUp: false,
@@ -226,7 +251,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     };
 
     const sparkles = [];
-    let gameWon = false;
 
     const bubbleTexts = [
       "nope 💨",
@@ -239,19 +263,14 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       "no no no 😜"
     ];
 
-    function startMusic() {
-      if (musicStarted) return;
-      music.volume = 0.45;
-      const playPromise = music.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            musicStarted = true;
-          })
-          .catch(() => {
-            // Browser blocked autoplay until another interaction
-          });
+    async function beginGame() {
+      try {
+        await music.play();
+      } catch (e) {
+        console.log("Music could not start:", e);
       }
+      startOverlay.style.display = "none";
+      gameStarted = true;
     }
 
     function randomRange(min, max) {
@@ -536,12 +555,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     }
 
     function gameLoop() {
-      if (!gameWon) {
+      if (gameStarted && !gameWon) {
         updatePlayer();
         checkHeartBehavior();
         updateHeartRespawn();
         updateSparkles();
-      } else {
+      } else if (gameWon) {
         updateSparkles();
       }
 
@@ -575,8 +594,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     }
 
     window.addEventListener("keydown", (e) => {
+      if (!gameStarted) return;
       if (e.key in keys) {
-        startMusic();
         keys[e.key] = true;
         e.preventDefault();
       }
@@ -589,15 +608,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       }
     });
 
-    window.addEventListener("click", startMusic, { once: true });
-    window.addEventListener("touchstart", startMusic, { once: true, passive: true });
-
     function bindControl(buttonId, keyName) {
       const btn = document.getElementById(buttonId);
 
       const press = (e) => {
         e.preventDefault();
-        startMusic();
+        if (!gameStarted) return;
         setKey(keyName, true);
         btn.classList.add("pressed");
       };
@@ -622,8 +638,10 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     bindControl("downBtn", "ArrowDown");
     bindControl("rightBtn", "ArrowRight");
 
+    startBtn.addEventListener("click", beginGame);
+    startBtn.addEventListener("touchstart", beginGame, { passive: true });
+
     restartBtn.addEventListener("click", () => {
-      startMusic();
       resetGame();
     });
 
