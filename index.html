@@ -213,6 +213,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       nextY: 250,
       bubble: "",
       bubbleTimer: 0,
+      bubbleX: 680,
+      bubbleY: 250,
     };
 
     const sparkles = [];
@@ -257,7 +259,9 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
     function showBubble(text) {
       heart.bubble = text;
-      heart.bubbleTimer = 50;
+      heart.bubbleTimer = 95; // stays much longer now
+      heart.bubbleX = heart.x;
+      heart.bubbleY = heart.y;
     }
 
     function drawPlayer() {
@@ -309,33 +313,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.globalAlpha = 1;
     }
 
-    function drawBubble() {
-      if (!heart.visible || heart.bubbleTimer <= 0 || !heart.bubble) return;
-
-      const text = heart.bubble;
-      ctx.save();
-      ctx.font = "bold 18px Arial";
-      const paddingX = 14;
-      const textWidth = ctx.measureText(text).width;
-      const boxWidth = textWidth + paddingX * 2;
-      const boxHeight = 36;
-
-      let bubbleX = heart.x - boxWidth / 2;
-      let bubbleY = heart.y - 58;
-
-      bubbleX = clamp(bubbleX, 8, canvas.width - boxWidth - 8);
-      bubbleY = clamp(bubbleY, 8, canvas.height - boxHeight - 8);
-
-      ctx.globalAlpha = Math.min(1, heart.bubbleTimer / 12);
-      ctx.fillStyle = "rgba(255,255,255,0.96)";
-      roundRect(ctx, bubbleX, bubbleY, boxWidth, boxHeight, 14);
-      ctx.fill();
-
-      ctx.fillStyle = "#d63384";
-      ctx.fillText(text, bubbleX + paddingX, bubbleY + 24);
-      ctx.restore();
-    }
-
     function roundRect(ctx, x, y, w, h, r) {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -348,6 +325,33 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.lineTo(x, y + r);
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
+    }
+
+    function drawBubble() {
+      if (heart.bubbleTimer <= 0 || !heart.bubble) return;
+
+      const text = heart.bubble;
+      ctx.save();
+      ctx.font = "bold 18px Arial";
+      const paddingX = 14;
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + paddingX * 2;
+      const boxHeight = 36;
+
+      let bubbleX = heart.bubbleX - boxWidth / 2;
+      let bubbleY = heart.bubbleY - 58;
+
+      bubbleX = clamp(bubbleX, 8, canvas.width - boxWidth - 8);
+      bubbleY = clamp(bubbleY, 8, canvas.height - boxHeight - 8);
+
+      ctx.globalAlpha = Math.min(1, heart.bubbleTimer / 18);
+      ctx.fillStyle = "rgba(255,255,255,0.97)";
+      roundRect(ctx, bubbleX, bubbleY, boxWidth, boxHeight, 14);
+      ctx.fill();
+
+      ctx.fillStyle = "#d63384";
+      ctx.fillText(text, bubbleX + paddingX, bubbleY + 24);
+      ctx.restore();
     }
 
     function updatePlayer() {
@@ -365,10 +369,10 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       let bestX = heart.x;
       let bestY = heart.y;
 
-      const minMoveDistance = 70;
-      const maxMoveDistance = 220;
+      const minMoveDistance = 90;   // a bit harder than before
+      const maxMoveDistance = 260;  // but still not brutal
 
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 24; i++) {
         let angle = Math.random() * Math.PI * 2;
         let distance = randomRange(minMoveDistance, maxMoveDistance);
 
@@ -384,7 +388,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
         if (
           distFromOldHeart > minMoveDistance &&
           distFromOldHeart < maxMoveDistance &&
-          distFromPlayer > 60
+          distFromPlayer > 85
         ) {
           bestX = candidateX;
           bestY = candidateY;
@@ -397,6 +401,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     }
 
     function startHeartEscape() {
+      showBubble(randomItem(bubbleTexts));
       chooseFarHeartPosition();
       heart.visible = false;
       heart.respawnTimer = 42;
@@ -404,7 +409,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.escapedFlash = 12;
 
       createSparkles(heart.x, heart.y, 14, "#ffbad3");
-      showBubble(randomItem(bubbleTexts));
 
       if (heart.dodgesLeft > 3) {
         info.textContent = "Nope 😝💖";
@@ -523,6 +527,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.respawnTimer = 0;
       heart.bubble = "";
       heart.bubbleTimer = 0;
+      heart.bubbleX = heart.x;
+      heart.bubbleY = heart.y;
       sparkles.length = 0;
       overlay.style.display = "none";
       info.innerHTML = "Catch the little heart if you can 💖<br />It’s a bit shy... and a bit annoying.";
