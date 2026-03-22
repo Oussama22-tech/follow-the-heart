@@ -82,25 +82,10 @@
       background: #e96ba1;
     }
 
-    #upBtn {
-      grid-column: 2;
-      grid-row: 1;
-    }
-
-    #leftBtn {
-      grid-column: 1;
-      grid-row: 2;
-    }
-
-    #downBtn {
-      grid-column: 2;
-      grid-row: 2;
-    }
-
-    #rightBtn {
-      grid-column: 3;
-      grid-row: 2;
-    }
+    #upBtn { grid-column: 2; grid-row: 1; }
+    #leftBtn { grid-column: 1; grid-row: 2; }
+    #downBtn { grid-column: 2; grid-row: 2; }
+    #rightBtn { grid-column: 3; grid-row: 2; }
 
     #messageOverlay {
       position: fixed;
@@ -153,10 +138,7 @@
     }
 
     @media (max-width: 700px) {
-      #controls {
-        margin-top: 14px;
-      }
-
+      #controls { margin-top: 14px; }
       .ctrl {
         width: 68px;
         height: 68px;
@@ -222,8 +204,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       x: 680,
       y: 250,
       size: 18,
-      dodgesLeft: 7,
+      dodgesLeft: 10,
       escapedFlash: 0,
+      visible: true,
+      respawnTimer: 0,
+      nextX: 680,
+      nextY: 250,
     };
 
     const sparkles = [];
@@ -288,14 +274,6 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.restore();
     }
 
-    function drawBackgroundDecor() {
-      for (let i = 0; i < 10; i++) {
-        ctx.globalAlpha = 0.12;
-        drawSmallDecorHeart(80 + i * 85, 55 + (i % 2) * 18, 10);
-      }
-      ctx.globalAlpha = 1;
-    }
-
     function drawSmallDecorHeart(x, y, size) {
       ctx.save();
       ctx.translate(x, y);
@@ -308,6 +286,14 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.restore();
     }
 
+    function drawBackgroundDecor() {
+      for (let i = 0; i < 10; i++) {
+        ctx.globalAlpha = 0.12;
+        drawSmallDecorHeart(80 + i * 85, 55 + (i % 2) * 18, 10);
+      }
+      ctx.globalAlpha = 1;
+    }
+
     function updatePlayer() {
       if (keys.ArrowUp) player.y -= player.speed;
       if (keys.ArrowDown) player.y += player.speed;
@@ -318,44 +304,72 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       player.y = clamp(player.y, player.size, canvas.height - player.size);
     }
 
-    function moveHeartAway() {
-      const dx = heart.x - player.x;
-      const dy = heart.y - player.y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    function chooseFarHeartPosition() {
+      let bestX = heart.x;
+      let bestY = heart.y;
+      let bestScore = -Infinity;
 
-      const nx = dx / dist;
-      const ny = dy / dist;
+      for (let i = 0; i < 25; i++) {
+        const candidateX = randomRange(55, canvas.width - 55);
+        const candidateY = randomRange(90, canvas.height - 50);
 
-      const jumpDistance = 120 + Math.random() * 90;
+        const distFromPlayer = Math.hypot(candidateX - player.x, candidateY - player.y);
+        const distFromOldHeart = Math.hypot(candidateX - heart.x, candidateY - heart.y);
 
-      heart.x += nx * jumpDistance + randomRange(-35, 35);
-      heart.y += ny * jumpDistance + randomRange(-35, 35);
+        const score = distFromPlayer * 1.5 + distFromOldHeart;
 
-      heart.x = clamp(heart.x, 50, canvas.width - 50);
-      heart.y = clamp(heart.y, 80, canvas.height - 45);
+        if (score > bestScore) {
+          bestScore = score;
+          bestX = candidateX;
+          bestY = candidateY;
+        }
+      }
 
+      heart.nextX = bestX;
+      heart.nextY = bestY;
+    }
+
+    function startHeartEscape() {
+      chooseFarHeartPosition();
+      heart.visible = false;
+      heart.respawnTimer = 22;
       heart.dodgesLeft--;
       heart.escapedFlash = 12;
 
-      createSparkles(heart.x, heart.y, 12, "#ffbad3");
+      createSparkles(heart.x, heart.y, 14, "#ffbad3");
 
-      if (heart.dodgesLeft > 0) {
-        info.textContent =
-          heart.dodgesLeft > 3
-            ? "Hehe... almost 😝💖"
-            : "Okay okay... maybe you're getting closer 👀";
+      if (heart.dodgesLeft > 6) {
+        info.textContent = "Nope 😝💖";
+      } else if (heart.dodgesLeft > 3) {
+        info.textContent = "Still too slow, booba 😏";
+      } else if (heart.dodgesLeft > 0) {
+        info.textContent = "Okay okay... almost 😶‍🌫️";
       } else {
-        info.textContent = "Fine... you can have it now 💘";
+        info.textContent = "Fine... now you can catch me 💘";
+      }
+    }
+
+    function updateHeartRespawn() {
+      if (!heart.visible && heart.respawnTimer > 0) {
+        heart.respawnTimer--;
+        if (heart.respawnTimer <= 0) {
+          heart.x = heart.nextX;
+          heart.y = heart.nextY;
+          heart.visible = true;
+          createSparkles(heart.x, heart.y, 10, "#ffd1e3");
+        }
       }
     }
 
     function checkHeartBehavior() {
+      if (!heart.visible) return;
+
       const dx = player.x - heart.x;
       const dy = player.y - heart.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (heart.dodgesLeft > 0 && distance < 95) {
-        moveHeartAway();
+      if (heart.dodgesLeft > 0 && distance < 105) {
+        startHeartEscape();
       }
 
       if (heart.dodgesLeft <= 0 && distance < player.size + heart.size * 0.9) {
@@ -401,13 +415,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       ctx.font = "18px Arial";
       ctx.fillStyle = "#a64d79";
-      ctx.fillText(
-        heart.dodgesLeft > 0
-          ? "It keeps running away..."
-          : "Now it finally trusts you 💖",
-        24,
-        66
-      );
+
+      if (heart.dodgesLeft > 0) {
+        ctx.fillText(`Dodges left: ${heart.dodgesLeft}`, 24, 66);
+      } else {
+        ctx.fillText("Now it finally gave up 💖", 24, 66);
+      }
     }
 
     function draw() {
@@ -415,7 +428,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       drawBackgroundDecor();
       drawHUD();
-      drawHeart(heart.x, heart.y, heart.size);
+      if (heart.visible) drawHeart(heart.x, heart.y, heart.size);
       drawRoundedPlayer();
       drawSparkles();
     }
@@ -424,6 +437,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       if (!gameWon) {
         updatePlayer();
         checkHeartBehavior();
+        updateHeartRespawn();
         updateSparkles();
       } else {
         updateSparkles();
@@ -439,8 +453,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       player.y = 260;
       heart.x = 680;
       heart.y = 250;
-      heart.dodgesLeft = 7;
+      heart.nextX = 680;
+      heart.nextY = 250;
+      heart.dodgesLeft = 10;
       heart.escapedFlash = 0;
+      heart.visible = true;
+      heart.respawnTimer = 0;
       sparkles.length = 0;
       overlay.style.display = "none";
       info.innerHTML = "Catch the little heart if you can 💖<br />It’s a bit shy... and a bit annoying.";
