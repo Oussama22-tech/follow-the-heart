@@ -210,13 +210,30 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       respawnTimer: 0,
       nextX: 680,
       nextY: 250,
+      bubble: "",
+      bubbleTimer: 0,
     };
 
     const sparkles = [];
     let gameWon = false;
 
+    const bubbleTexts = [
+      "nope 💨",
+      "hehe 😝",
+      "too slow 😌",
+      "catch me then 💖",
+      "naaaah 😏",
+      "almost!! 😆",
+      "bye booba 💨",
+      "no no no 😜"
+    ];
+
     function randomRange(min, max) {
       return Math.random() * (max - min) + min;
+    }
+
+    function randomItem(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
     }
 
     function clamp(value, min, max) {
@@ -235,6 +252,11 @@ I hope your birthday is full of smiles, love, and beautiful moments.
           color,
         });
       }
+    }
+
+    function showBubble(text) {
+      heart.bubble = text;
+      heart.bubbleTimer = 50;
     }
 
     function drawRoundedPlayer() {
@@ -294,6 +316,48 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       ctx.globalAlpha = 1;
     }
 
+    function drawBubble() {
+      if (!heart.visible || heart.bubbleTimer <= 0 || !heart.bubble) return;
+
+      const text = heart.bubble;
+      ctx.save();
+      ctx.font = "bold 18px Arial";
+      const paddingX = 14;
+      const paddingY = 10;
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + paddingX * 2;
+      const boxHeight = 36;
+
+      let bubbleX = heart.x - boxWidth / 2;
+      let bubbleY = heart.y - 58;
+
+      bubbleX = clamp(bubbleX, 8, canvas.width - boxWidth - 8);
+      bubbleY = clamp(bubbleY, 8, canvas.height - boxHeight - 8);
+
+      ctx.globalAlpha = Math.min(1, heart.bubbleTimer / 12);
+      ctx.fillStyle = "rgba(255,255,255,0.96)";
+      roundRect(ctx, bubbleX, bubbleY, boxWidth, boxHeight, 14);
+      ctx.fill();
+
+      ctx.fillStyle = "#d63384";
+      ctx.fillText(text, bubbleX + paddingX, bubbleY + 24);
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
     function updatePlayer() {
       if (keys.ArrowUp) player.y -= player.speed;
       if (keys.ArrowDown) player.y += player.speed;
@@ -309,14 +373,26 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       let bestY = heart.y;
       let bestScore = -Infinity;
 
-      for (let i = 0; i < 25; i++) {
-        const candidateX = randomRange(55, canvas.width - 55);
-        const candidateY = randomRange(90, canvas.height - 50);
+      for (let i = 0; i < 35; i++) {
+        let candidateX;
+        let candidateY = randomRange(90, canvas.height - 50);
+
+        const oppositeSide = Math.random() < 0.75;
+
+        if (oppositeSide) {
+          if (player.x < canvas.width / 2) {
+            candidateX = randomRange(canvas.width * 0.65, canvas.width - 55);
+          } else {
+            candidateX = randomRange(55, canvas.width * 0.35);
+          }
+        } else {
+          candidateX = randomRange(55, canvas.width - 55);
+        }
 
         const distFromPlayer = Math.hypot(candidateX - player.x, candidateY - player.y);
         const distFromOldHeart = Math.hypot(candidateX - heart.x, candidateY - heart.y);
 
-        const score = distFromPlayer * 1.5 + distFromOldHeart;
+        const score = distFromPlayer * 2 + distFromOldHeart * 1.4;
 
         if (score > bestScore) {
           bestScore = score;
@@ -332,11 +408,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     function startHeartEscape() {
       chooseFarHeartPosition();
       heart.visible = false;
-      heart.respawnTimer = 22;
+      heart.respawnTimer = 42; // longer disappear time
       heart.dodgesLeft--;
       heart.escapedFlash = 12;
 
       createSparkles(heart.x, heart.y, 14, "#ffbad3");
+      showBubble(randomItem(bubbleTexts));
 
       if (heart.dodgesLeft > 6) {
         info.textContent = "Nope 😝💖";
@@ -392,9 +469,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
         }
       }
 
-      if (heart.escapedFlash > 0) {
-        heart.escapedFlash--;
-      }
+      if (heart.escapedFlash > 0) heart.escapedFlash--;
+      if (heart.bubbleTimer > 0) heart.bubbleTimer--;
     }
 
     function drawSparkles() {
@@ -431,6 +507,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       if (heart.visible) drawHeart(heart.x, heart.y, heart.size);
       drawRoundedPlayer();
       drawSparkles();
+      drawBubble();
     }
 
     function gameLoop() {
@@ -459,6 +536,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.escapedFlash = 0;
       heart.visible = true;
       heart.respawnTimer = 0;
+      heart.bubble = "";
+      heart.bubbleTimer = 0;
       sparkles.length = 0;
       overlay.style.display = "none";
       info.innerHTML = "Catch the little heart if you can 💖<br />It’s a bit shy... and a bit annoying.";
