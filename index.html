@@ -74,6 +74,7 @@
       font-size: 28px;
       font-weight: bold;
       box-shadow: 0 6px 14px rgba(214, 51, 132, 0.18);
+      cursor: pointer;
     }
 
     .ctrl:active,
@@ -177,12 +178,19 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     </div>
   </div>
 
+  <audio id="bgMusic" loop preload="auto">
+    <source src="music.mp3" type="audio/mpeg" />
+  </audio>
+
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const info = document.getElementById("info");
     const overlay = document.getElementById("messageOverlay");
     const restartBtn = document.getElementById("restartBtn");
+
+    const music = document.getElementById("bgMusic");
+    let musicStarted = false;
 
     const bearImage = new Image();
     bearImage.src = "bear.png";
@@ -231,6 +239,21 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       "no no no 😜"
     ];
 
+    function startMusic() {
+      if (musicStarted) return;
+      music.volume = 0.45;
+      const playPromise = music.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            musicStarted = true;
+          })
+          .catch(() => {
+            // Browser blocked autoplay until another interaction
+          });
+      }
+    }
+
     function randomRange(min, max) {
       return Math.random() * (max - min) + min;
     }
@@ -259,7 +282,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
     function showBubble(text) {
       heart.bubble = text;
-      heart.bubbleTimer = 95; // stays much longer now
+      heart.bubbleTimer = 95;
       heart.bubbleX = heart.x;
       heart.bubbleY = heart.y;
     }
@@ -368,16 +391,29 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     function chooseFarHeartPosition() {
       let bestX = heart.x;
       let bestY = heart.y;
+      let bestScore = -Infinity;
 
-      const minMoveDistance = 90;   // a bit harder than before
-      const maxMoveDistance = 260;  // but still not brutal
+      const minMoveDistance = 110;
+      const maxMoveDistance = 300;
 
-      for (let i = 0; i < 24; i++) {
-        let angle = Math.random() * Math.PI * 2;
-        let distance = randomRange(minMoveDistance, maxMoveDistance);
+      for (let i = 0; i < 30; i++) {
+        let candidateX;
+        let candidateY = randomRange(90, canvas.height - 50);
 
-        let candidateX = heart.x + Math.cos(angle) * distance;
-        let candidateY = heart.y + Math.sin(angle) * distance;
+        const maybeOppositeSide = Math.random() < 0.55;
+
+        if (maybeOppositeSide) {
+          if (player.x < canvas.width / 2) {
+            candidateX = randomRange(canvas.width * 0.58, canvas.width - 55);
+          } else {
+            candidateX = randomRange(55, canvas.width * 0.42);
+          }
+        } else {
+          let angle = Math.random() * Math.PI * 2;
+          let distance = randomRange(minMoveDistance, maxMoveDistance);
+          candidateX = heart.x + Math.cos(angle) * distance;
+          candidateY = heart.y + Math.sin(angle) * distance;
+        }
 
         candidateX = clamp(candidateX, 55, canvas.width - 55);
         candidateY = clamp(candidateY, 90, canvas.height - 50);
@@ -385,14 +421,14 @@ I hope your birthday is full of smiles, love, and beautiful moments.
         const distFromPlayer = Math.hypot(candidateX - player.x, candidateY - player.y);
         const distFromOldHeart = Math.hypot(candidateX - heart.x, candidateY - heart.y);
 
-        if (
-          distFromOldHeart > minMoveDistance &&
-          distFromOldHeart < maxMoveDistance &&
-          distFromPlayer > 85
-        ) {
+        if (distFromOldHeart < minMoveDistance) continue;
+
+        const score = distFromPlayer * 1.5 + distFromOldHeart * 1.2;
+
+        if (score > bestScore) {
+          bestScore = score;
           bestX = candidateX;
           bestY = candidateY;
-          break;
         }
       }
 
@@ -540,6 +576,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
     window.addEventListener("keydown", (e) => {
       if (e.key in keys) {
+        startMusic();
         keys[e.key] = true;
         e.preventDefault();
       }
@@ -552,11 +589,15 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       }
     });
 
+    window.addEventListener("click", startMusic, { once: true });
+    window.addEventListener("touchstart", startMusic, { once: true, passive: true });
+
     function bindControl(buttonId, keyName) {
       const btn = document.getElementById(buttonId);
 
       const press = (e) => {
         e.preventDefault();
+        startMusic();
         setKey(keyName, true);
         btn.classList.add("pressed");
       };
@@ -581,10 +622,12 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     bindControl("downBtn", "ArrowDown");
     bindControl("rightBtn", "ArrowRight");
 
-    restartBtn.addEventListener("click", resetGame);
+    restartBtn.addEventListener("click", () => {
+      startMusic();
+      resetGame();
+    });
 
     gameLoop();
   </script>
-  <audio id="bgMusic" src="music.mp3" loop></audio>
 </body>
 </html>
