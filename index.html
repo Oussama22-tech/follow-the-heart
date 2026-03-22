@@ -138,7 +138,6 @@
     }
 
     @media (max-width: 700px) {
-      #controls { margin-top: 14px; }
       .ctrl {
         width: 68px;
         height: 68px;
@@ -185,6 +184,9 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     const overlay = document.getElementById("messageOverlay");
     const restartBtn = document.getElementById("restartBtn");
 
+    const bearImage = new Image();
+    bearImage.src = "bear.png";
+
     const keys = {
       ArrowUp: false,
       ArrowDown: false,
@@ -195,9 +197,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     const player = {
       x: 110,
       y: 260,
-      size: 22,
+      size: 68,
       speed: 4.2,
-      color: "#ff4d88",
     };
 
     const heart = {
@@ -259,29 +260,21 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       heart.bubbleTimer = 50;
     }
 
-    function drawRoundedPlayer() {
-      ctx.beginPath();
-      ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-      ctx.fillStyle = player.color;
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(player.x - 7, player.y - 5, 2.5, 0, Math.PI * 2);
-      ctx.arc(player.x + 7, player.y - 5, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff";
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(player.x - 7, player.y - 5, 1.2, 0, Math.PI * 2);
-      ctx.arc(player.x + 7, player.y - 5, 1.2, 0, Math.PI * 2);
-      ctx.fillStyle = "#333";
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(player.x, player.y + 4, 6, 0, Math.PI);
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    function drawPlayer() {
+      if (bearImage.complete && bearImage.naturalWidth > 0) {
+        ctx.drawImage(
+          bearImage,
+          player.x - player.size / 2,
+          player.y - player.size / 2,
+          player.size,
+          player.size
+        );
+      } else {
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 24, 0, Math.PI * 2);
+        ctx.fillStyle = "#c98b5b";
+        ctx.fill();
+      }
     }
 
     function drawHeart(x, y, size) {
@@ -364,8 +357,9 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       if (keys.ArrowLeft) player.x -= player.speed;
       if (keys.ArrowRight) player.x += player.speed;
 
-      player.x = clamp(player.x, player.size, canvas.width - player.size);
-      player.y = clamp(player.y, player.size, canvas.height - player.size);
+      const half = player.size / 2;
+      player.x = clamp(player.x, half, canvas.width - half);
+      player.y = clamp(player.y, half, canvas.height - half);
     }
 
     function chooseFarHeartPosition() {
@@ -373,26 +367,27 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       let bestY = heart.y;
       let bestScore = -Infinity;
 
-      for (let i = 0; i < 35; i++) {
-        let candidateX;
+      const minMoveDistance = 120;
+
+      for (let i = 0; i < 28; i++) {
+        let candidateX = randomRange(55, canvas.width - 55);
         let candidateY = randomRange(90, canvas.height - 50);
 
-        const oppositeSide = Math.random() < 0.75;
-
-        if (oppositeSide) {
+        const sometimesOppositeSide = Math.random() < 0.45;
+        if (sometimesOppositeSide) {
           if (player.x < canvas.width / 2) {
-            candidateX = randomRange(canvas.width * 0.65, canvas.width - 55);
+            candidateX = randomRange(canvas.width * 0.58, canvas.width - 55);
           } else {
-            candidateX = randomRange(55, canvas.width * 0.35);
+            candidateX = randomRange(55, canvas.width * 0.42);
           }
-        } else {
-          candidateX = randomRange(55, canvas.width - 55);
         }
 
         const distFromPlayer = Math.hypot(candidateX - player.x, candidateY - player.y);
         const distFromOldHeart = Math.hypot(candidateX - heart.x, candidateY - heart.y);
 
-        const score = distFromPlayer * 2 + distFromOldHeart * 1.4;
+        if (distFromOldHeart < minMoveDistance) continue;
+
+        const score = distFromPlayer * 1.25 + distFromOldHeart * 1.1;
 
         if (score > bestScore) {
           bestScore = score;
@@ -408,7 +403,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
     function startHeartEscape() {
       chooseFarHeartPosition();
       heart.visible = false;
-      heart.respawnTimer = 42; // longer disappear time
+      heart.respawnTimer = 42;
       heart.dodgesLeft--;
       heart.escapedFlash = 12;
 
@@ -449,7 +444,8 @@ I hope your birthday is full of smiles, love, and beautiful moments.
         startHeartEscape();
       }
 
-      if (heart.dodgesLeft <= 0 && distance < player.size + heart.size * 0.9) {
+      const catchRadius = player.size * 0.28 + heart.size * 0.9;
+      if (heart.dodgesLeft <= 0 && distance < catchRadius) {
         gameWon = true;
         overlay.style.display = "flex";
         info.textContent = "You got it 💖";
@@ -491,12 +487,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
 
       ctx.font = "18px Arial";
       ctx.fillStyle = "#a64d79";
-
-      if (heart.dodgesLeft > 0) {
-        ctx.fillText(`Dodges left: ${heart.dodgesLeft}`, 24, 66);
-      } else {
-        ctx.fillText("Now it finally gave up 💖", 24, 66);
-      }
+      ctx.fillText("It keeps slipping away...", 24, 66);
     }
 
     function draw() {
@@ -505,7 +496,7 @@ I hope your birthday is full of smiles, love, and beautiful moments.
       drawBackgroundDecor();
       drawHUD();
       if (heart.visible) drawHeart(heart.x, heart.y, heart.size);
-      drawRoundedPlayer();
+      drawPlayer();
       drawSparkles();
       drawBubble();
     }
