@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Birthday Heart Hunt</title>
+  <title>The Booba game &lt;3</title>
   <style>
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
@@ -14,30 +15,34 @@
       font-family: Arial, sans-serif;
       background: linear-gradient(180deg, #ffe4ec, #fff7fa);
       overflow: hidden;
+      touch-action: none;
     }
 
     #gameWrapper {
       width: 100vw;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       flex-direction: column;
       position: relative;
+      padding: 12px;
     }
 
     h1 {
-      margin: 16px 0 8px;
+      margin: 14px 0 8px;
       color: #d63384;
       text-align: center;
+      font-size: clamp(28px, 5vw, 48px);
     }
 
     #info {
       color: #7a2c5b;
       margin-bottom: 10px;
-      font-size: 18px;
+      font-size: clamp(16px, 2.8vw, 20px);
       text-align: center;
-      padding: 0 16px;
+      padding: 0 14px;
+      max-width: 800px;
     }
 
     canvas {
@@ -45,19 +50,68 @@
       border-radius: 20px;
       background: #fff0f6;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-      max-width: 95vw;
-      max-height: 75vh;
+      width: min(95vw, 900px);
+      height: auto;
+      max-height: 60vh;
+      display: block;
+    }
+
+    #controls {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 72px 72px 72px;
+      grid-template-rows: 72px 72px;
+      gap: 10px;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .ctrl {
+      border: none;
+      border-radius: 18px;
+      background: #ff8fbc;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      box-shadow: 0 6px 14px rgba(214, 51, 132, 0.18);
+    }
+
+    .ctrl:active,
+    .ctrl.pressed {
+      transform: scale(0.96);
+      background: #e96ba1;
+    }
+
+    #upBtn {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    #leftBtn {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    #downBtn {
+      grid-column: 2;
+      grid-row: 2;
+    }
+
+    #rightBtn {
+      grid-column: 3;
+      grid-row: 2;
     }
 
     #messageOverlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      background: rgba(255, 240, 246, 0.95);
+      background: rgba(255, 240, 246, 0.96);
       display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
       text-align: center;
+      z-index: 20;
     }
 
     #messageBox {
@@ -72,12 +126,12 @@
     #messageBox h2 {
       color: #d63384;
       margin-top: 0;
-      font-size: 2rem;
+      font-size: clamp(28px, 5vw, 40px);
     }
 
     #messageBox p {
       color: #6b3050;
-      font-size: 1.2rem;
+      font-size: clamp(18px, 3vw, 22px);
       line-height: 1.7;
       margin-bottom: 0;
       white-space: pre-line;
@@ -97,31 +151,48 @@
     #restartBtn:hover {
       background: #bf2c74;
     }
+
+    @media (max-width: 700px) {
+      #controls {
+        margin-top: 14px;
+      }
+
+      .ctrl {
+        width: 68px;
+        height: 68px;
+        font-size: 26px;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="gameWrapper">
-    <h1>Birthday Heart Hunt 💖</h1>
+    <h1>The Booba game &lt;3</h1>
     <div id="info">
-      Use the arrow keys to collect 5 hearts and unlock your birthday surprise ✨
+      Catch the little heart if you can 💖<br />
+      It’s a bit shy... and a bit annoying.
     </div>
 
     <canvas id="gameCanvas" width="900" height="520"></canvas>
 
-    <div id="messageOverlay">
-      <div id="messageBox">
-        <h2>Happy Birthday, my love 🎂💖</h2>
-        <p id="finalMessage">
+    <div id="controls">
+      <button class="ctrl" id="upBtn">↑</button>
+      <button class="ctrl" id="leftBtn">←</button>
+      <button class="ctrl" id="downBtn">↓</button>
+      <button class="ctrl" id="rightBtn">→</button>
+    </div>
+  </div>
+
+  <div id="messageOverlay">
+    <div id="messageBox">
+      <h2>Happy birthday booba 🎂💖</h2>
+      <p>
 You unlocked your surprise ✨
 
 I made this little game just for you.
 I hope your birthday is full of smiles, love, and beautiful moments.
-
-And your real reward?
-A special birthday date with me, lots of hugs, and a little surprise waiting for you 💝
-        </p>
-        <button id="restartBtn">Play Again</button>
-      </div>
+      </p>
+      <button id="restartBtn">Play Again</button>
     </div>
   </div>
 
@@ -140,36 +211,34 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
     };
 
     const player = {
-      x: 100,
+      x: 110,
       y: 260,
       size: 22,
       speed: 4.2,
       color: "#ff4d88",
     };
 
-    let score = 0;
-    const targetScore = 5;
-    let gameWon = false;
-
     const heart = {
-      x: 650,
-      y: 260,
+      x: 680,
+      y: 250,
       size: 18,
+      dodgesLeft: 7,
+      escapedFlash: 0,
     };
 
     const sparkles = [];
+    let gameWon = false;
 
     function randomRange(min, max) {
       return Math.random() * (max - min) + min;
     }
 
-    function spawnHeart() {
-      heart.x = randomRange(60, canvas.width - 60);
-      heart.y = randomRange(80, canvas.height - 60);
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
     }
 
-    function createSparkles(x, y) {
-      for (let i = 0; i < 18; i++) {
+    function createSparkles(x, y, amount = 16, color = "#ff9ec4") {
+      for (let i = 0; i < amount; i++) {
         sparkles.push({
           x,
           y,
@@ -177,6 +246,7 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
           dy: randomRange(-2.5, 2.5),
           life: 30,
           size: randomRange(2, 5),
+          color,
         });
       }
     }
@@ -213,7 +283,7 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
       ctx.moveTo(0, size / 4);
       ctx.bezierCurveTo(size / 2, -size / 2, size, size / 3, 0, size);
       ctx.bezierCurveTo(-size, size / 3, -size / 2, -size / 2, 0, size / 4);
-      ctx.fillStyle = "#ff2e63";
+      ctx.fillStyle = heart.escapedFlash > 0 ? "#ff5f91" : "#ff2e63";
       ctx.fill();
       ctx.restore();
     }
@@ -221,9 +291,21 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
     function drawBackgroundDecor() {
       for (let i = 0; i < 10; i++) {
         ctx.globalAlpha = 0.12;
-        drawHeart(80 + i * 85, 55 + (i % 2) * 18, 10);
+        drawSmallDecorHeart(80 + i * 85, 55 + (i % 2) * 18, 10);
       }
       ctx.globalAlpha = 1;
+    }
+
+    function drawSmallDecorHeart(x, y, size) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.beginPath();
+      ctx.moveTo(0, size / 4);
+      ctx.bezierCurveTo(size / 2, -size / 2, size, size / 3, 0, size);
+      ctx.bezierCurveTo(-size, size / 3, -size / 2, -size / 2, 0, size / 4);
+      ctx.fillStyle = "#ff7fae";
+      ctx.fill();
+      ctx.restore();
     }
 
     function updatePlayer() {
@@ -232,26 +314,55 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
       if (keys.ArrowLeft) player.x -= player.speed;
       if (keys.ArrowRight) player.x += player.speed;
 
-      player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
-      player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+      player.x = clamp(player.x, player.size, canvas.width - player.size);
+      player.y = clamp(player.y, player.size, canvas.height - player.size);
     }
 
-    function checkCollision() {
+    function moveHeartAway() {
+      const dx = heart.x - player.x;
+      const dy = heart.y - player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      const jumpDistance = 120 + Math.random() * 90;
+
+      heart.x += nx * jumpDistance + randomRange(-35, 35);
+      heart.y += ny * jumpDistance + randomRange(-35, 35);
+
+      heart.x = clamp(heart.x, 50, canvas.width - 50);
+      heart.y = clamp(heart.y, 80, canvas.height - 45);
+
+      heart.dodgesLeft--;
+      heart.escapedFlash = 12;
+
+      createSparkles(heart.x, heart.y, 12, "#ffbad3");
+
+      if (heart.dodgesLeft > 0) {
+        info.textContent =
+          heart.dodgesLeft > 3
+            ? "Hehe... almost 😝💖"
+            : "Okay okay... maybe you're getting closer 👀";
+      } else {
+        info.textContent = "Fine... you can have it now 💘";
+      }
+    }
+
+    function checkHeartBehavior() {
       const dx = player.x - heart.x;
       const dy = player.y - heart.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
 
-      if (distance < player.size + heart.size * 0.8) {
-        score++;
-        createSparkles(heart.x, heart.y);
+      if (heart.dodgesLeft > 0 && distance < 95) {
+        moveHeartAway();
+      }
 
-        if (score >= targetScore) {
-          gameWon = true;
-          overlay.style.display = "flex";
-          info.textContent = "You did it 💖";
-        } else {
-          spawnHeart();
-        }
+      if (heart.dodgesLeft <= 0 && distance < player.size + heart.size * 0.9) {
+        gameWon = true;
+        overlay.style.display = "flex";
+        info.textContent = "You got it 💖";
+        createSparkles(heart.x, heart.y, 30, "#ff6fa8");
       }
     }
 
@@ -266,6 +377,10 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
           sparkles.splice(i, 1);
         }
       }
+
+      if (heart.escapedFlash > 0) {
+        heart.escapedFlash--;
+      }
     }
 
     function drawSparkles() {
@@ -273,7 +388,7 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
         ctx.globalAlpha = s.life / 30;
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff9ec4";
+        ctx.fillStyle = s.color;
         ctx.fill();
       });
       ctx.globalAlpha = 1;
@@ -282,11 +397,17 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
     function drawHUD() {
       ctx.fillStyle = "#8b3a62";
       ctx.font = "bold 24px Arial";
-      ctx.fillText(`Hearts: ${score} / ${targetScore}`, 24, 36);
+      ctx.fillText("Catch the heart 💕", 24, 36);
 
       ctx.font = "18px Arial";
       ctx.fillStyle = "#a64d79";
-      ctx.fillText("Collect all the hearts to unlock your birthday message 💌", 24, 66);
+      ctx.fillText(
+        heart.dodgesLeft > 0
+          ? "It keeps running away..."
+          : "Now it finally trusts you 💖",
+        24,
+        66
+      );
     }
 
     function draw() {
@@ -302,7 +423,9 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
     function gameLoop() {
       if (!gameWon) {
         updatePlayer();
-        checkCollision();
+        checkHeartBehavior();
+        updateSparkles();
+      } else {
         updateSparkles();
       }
 
@@ -311,14 +434,20 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
     }
 
     function resetGame() {
-      score = 0;
       gameWon = false;
-      player.x = 100;
+      player.x = 110;
       player.y = 260;
+      heart.x = 680;
+      heart.y = 250;
+      heart.dodgesLeft = 7;
+      heart.escapedFlash = 0;
       sparkles.length = 0;
       overlay.style.display = "none";
-      info.textContent = "Use the arrow keys to collect 5 hearts and unlock your birthday surprise ✨";
-      spawnHeart();
+      info.innerHTML = "Catch the little heart if you can 💖<br />It’s a bit shy... and a bit annoying.";
+    }
+
+    function setKey(key, value) {
+      if (key in keys) keys[key] = value;
     }
 
     window.addEventListener("keydown", (e) => {
@@ -335,9 +464,37 @@ A special birthday date with me, lots of hugs, and a little surprise waiting for
       }
     });
 
+    function bindControl(buttonId, keyName) {
+      const btn = document.getElementById(buttonId);
+
+      const press = (e) => {
+        e.preventDefault();
+        setKey(keyName, true);
+        btn.classList.add("pressed");
+      };
+
+      const release = (e) => {
+        e.preventDefault();
+        setKey(keyName, false);
+        btn.classList.remove("pressed");
+      };
+
+      btn.addEventListener("touchstart", press, { passive: false });
+      btn.addEventListener("touchend", release, { passive: false });
+      btn.addEventListener("touchcancel", release, { passive: false });
+
+      btn.addEventListener("mousedown", press);
+      btn.addEventListener("mouseup", release);
+      btn.addEventListener("mouseleave", release);
+    }
+
+    bindControl("upBtn", "ArrowUp");
+    bindControl("leftBtn", "ArrowLeft");
+    bindControl("downBtn", "ArrowDown");
+    bindControl("rightBtn", "ArrowRight");
+
     restartBtn.addEventListener("click", resetGame);
 
-    spawnHeart();
     gameLoop();
   </script>
 </body>
